@@ -32,9 +32,9 @@ Le traitement suivra une organisation inspirée de l’architecture médaillon, 
 
 Ces données et leurs dérivés restent locaux et sont ignorés par Git. Les index sont des artefacts reconstruisibles ; les paramètres et résultats utiles aux comparaisons seront consignés dans `experiments/`.
 
-Les PDF IA04 contiennent du texte extractible. Leur conversion en texte pourra s’appuyer sur un outil dédié comme `pdftotext`. L’objectif est d’étudier le fonctionnement du RAG, pas de réimplémenter le format PDF.
+Les PDF IA04 contiennent du texte extractible. L’ingestion utilisera `pdftotext -bbox-layout`, qui fournit les lignes de texte avec leurs coordonnées. Un traitement Python léger rétablira l’ordre des colonnes ou des vignettes à partir de ces coordonnées. Il devra conserver les tableaux et les matrices comme des blocs, car un simple tri par abscisse en mélange les cellules. Les références conserveront la page PDF et, si nécessaire, la zone de la page. Le contenu uniquement graphique qui n’apparaît pas dans la couche texte du PDF ne sera pas indexé.
 
-Les documents LO23 sont hors du premier périmètre. Certains PDF LO23 présentent plusieurs diapositives sur une même page. Avant de les intégrer, il faudra vérifier que l’extraction conserve l’ordre et sépare correctement le texte de chaque diapositive. Si ce n’est pas le cas, on étudiera une conversion en une diapositive par page, en conservant la référence à la page d’origine.
+Les documents LO23 sont hors du premier périmètre. Certains PDF LO23 présentent plusieurs diapositives sur une même page. Si on les intègre plus tard, l’extraction utilisera les coordonnées fournies par `pdftotext` pour regrouper le texte par diapositive et garder la page PDF d’origine comme référence. Le contenu absent de la couche texte ne sera pas indexé.
 
 ## Approche d’implémentation
 
@@ -86,4 +86,4 @@ Les documents de cours et les données dérivées ne seront pas distribués avec
 
 ## État du projet
 
-Le corpus de départ est en place. Le code, le jeu de questions de référence et la première baseline restent à construire.
+Le corpus IA04 a été inventorié et les PDF ont fait l’objet d’un contrôle d’extraction ; le rapport est dans `evaluation/corpus_audit.md`. `pdftotext -bbox-layout` extrait du texte des 23 pages IA04, mais l’ordre géométrique n’est pas encore validé sur tout le corpus : les colonnes doivent être distinguées des tableaux et matrices. Le manifeste local `data/manifest.jsonl` enregistre les sources et leurs empreintes, et un jeu pilote privé de 16 questions est prêt pour mesurer la recherche. L’ingestion complète, le découpage et la première baseline restent à construire.
