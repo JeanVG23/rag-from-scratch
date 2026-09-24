@@ -1,0 +1,15 @@
+# Sources de cours et toutes les données dérivées : conservées localement.
+/data/
+
+# Fichiers temporaires réellement jetables.
+/.cache/
+
+# Questions et références d'évaluation dérivées des cours.
+/evaluation/private/
+
+# Environnement et fichiers locaux Python.
+.venv/
+__pycache__/
+*.py[cod]
+.env
+.DS_Store
