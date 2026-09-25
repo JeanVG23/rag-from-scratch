@@ -15,7 +15,20 @@ Le rapport d’une expérience précisera les valeurs de `k`, les paramètres de
 
 ## Génération
 
-Ces références évaluent le rappel de sources, pas l’exactitude des réponses générées. Avant d’évaluer un générateur, il faudra ajouter au jeu privé des éléments de réponse attendus et une grille vérifiant la fidélité aux passages récupérés et la qualité des citations.
+Les références actuelles évaluent le rappel des sources, pas l’exactitude des réponses générées. Le jeu privé est enrichi avec `expected_answer_points`, une liste de faits atomiques attendus. Chaque point porte les références document/page/section qui le justifient. Les questions sans réponse ont une liste vide, `expected_abstention: true` et une `abstention_reason`.
+
+Les questions et réponses de référence restent privées. Pour q15 et q16, le corpus local ne fournit respectivement ni calendrier du prochain examen ni données d’effectif pour l’automne 2025 ; le modèle doit le signaler au lieu d’inventer une date ou un nombre.
+
+### Grille de notation des réponses
+
+Les dimensions sont notées séparément ; on ne les réduit pas à un score global qui masquerait leurs différences.
+
+1. **Couverture des faits attendus** — noter chaque point de `expected_answer_points` : `1` s’il est correctement couvert avec ses précisions essentielles, `0.5` s’il est partiellement correct ou incomplet, `0` s’il manque ou est faux. La couverture d’une question est la moyenne de ses points.
+2. **Fidélité au contexte** — `2` si les affirmations factuelles sont appuyées par les passages récupérés, `1` si une affirmation mineure est insuffisamment étayée, `0` si une affirmation centrale est inventée ou contredite par les sources.
+3. **Qualité des citations** — `2` si les affirmations importantes sont reliées à une source et à une page/section qui les justifient, `1` si les sources sont globalement pertinentes mais les repères sont incomplets, `0` si les citations manquent ou pointent vers des sources inadéquates.
+4. **Abstention** — pour q15 et q16, `1` si la réponse dit clairement que le corpus ne permet pas de conclure et n’invente pas de fait, `0` sinon. Pour une question répondable dont les passages récupérés omettent un fait attendu, noter séparément l’abstention prudente et le défaut de couverture ; ne pas récompenser une affirmation non étayée.
+
+Les variantes de formulation sont acceptées si elles expriment le même fait. Une réponse ne doit pas être pénalisée parce qu’elle ne reprend pas les mots exacts du corrigé. Le rapport de génération devra également consigner les erreurs représentatives sans reproduire le contenu privé des cours.
 
 ## Limites du jeu pilote
 

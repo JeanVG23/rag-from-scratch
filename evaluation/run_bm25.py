@@ -22,6 +22,7 @@ def run_bm25_evaluation(
     report_path: Path,
     k1: float = 1.5,
     b: float = 0.75,
+    include_metadata: bool = False,
 ) -> dict[str, Any]:
     chunk_records = load_jsonl(chunks_path)
     chunks = [Chunk(**record) for record in chunk_records]
@@ -33,7 +34,7 @@ def run_bm25_evaluation(
         raise ValueError("The evaluation set contains no answerable questions")
 
     started = time.perf_counter()
-    retriever = BM25Retriever(chunks, k1=k1, b=b)
+    retriever = BM25Retriever(chunks, k1=k1, b=b, include_metadata=include_metadata)
     indexing_seconds = time.perf_counter() - started
 
     chunk_indexes = {chunk.chunk_id: index for index, chunk in enumerate(chunks)}
@@ -57,6 +58,7 @@ def run_bm25_evaluation(
         "method": "BM25",
         "k1": k1,
         "b": b,
+        "include_metadata": include_metadata,
         "chunk_count": len(chunks),
         "question_count": len(questions),
         "answerable_question_count": len(answerable),
@@ -73,14 +75,17 @@ def run_bm25_evaluation(
         for entry in per_question
         if entry["first_relevant_rank"] is not None and entry["first_relevant_rank"] > 5
     ]
+    details_filename = "bm25_with_metadata.json" if include_metadata else "bm25.json"
+    details_path = data_dir / "evaluations" / details_filename
     report_lines = [
-        "# Recherche BM25 IA04",
+        "# Recherche BM25 IA04" + (" avec métadonnées" if include_metadata else ""),
         "",
         f"Évaluation générée le {generated_at}.",
         f"- Chunks : {len(chunks)} depuis `{chunks_path}`.",
         f"- Questions répondables : {len(answerable)} sur {len(questions)} ; les questions sans réponse sont exclues des métriques, conformément au protocole.",
         f"- Paramètres : `k1={k1:g}`, `b={b:g}`.",
         "- Recherche : BM25 implémenté en Python, index calculé en mémoire.",
+        "- Champs indexés : texte du chunk, nom du fichier source sans extension et titre de section." if include_metadata else "- Champ indexé : texte du chunk uniquement.",
         "- Tokenisation : minuscules, accents retirés, séparation sur les caractères non alphanumériques ; aucun stemming ni mot vide retiré.",
         "- Recall@k : proportion micro des références document/section/page retrouvées ; MRR : rang du premier résultat pertinent, moyenné par question.",
         "",
@@ -98,15 +103,15 @@ def run_bm25_evaluation(
         "",
         "- Ce score est un premier résultat sur un jeu pilote privé de petite taille ; il ne mesure pas la qualité des réponses générées.",
         "- La tokenisation initiale ne ramène pas les formes fléchies à leur racine et peut manquer des correspondances par synonymie ou paraphrase.",
+        "- Les métadonnées sont concaténées au texte et utilisent le même poids BM25 ; une version ultérieure pourra scorer les champs séparément." if include_metadata else "- Les métadonnées source et section ne sont pas indexées dans cette baseline.",
         "- L’extraction PDF utilise `pdftotext -layout` ; l’ordre de lecture des pages à colonnes, tableaux et matrices peut affecter les résultats.",
         "- Les questions sans réponse ne sont pas évaluées ici pour l’abstention ; cette capacité sera mesurée avec la génération.",
         "",
-        "Les classements détaillés par question et les identifiants des chunks sont conservés localement dans `data/evaluations/bm25.json`.",
+        f"Les classements détaillés par question et les identifiants des chunks sont conservés localement dans `{details_path}`.",
     ]
     report_path.parent.mkdir(parents=True, exist_ok=True)
     report_path.write_text("\n".join(report_lines) + "\n", encoding="utf-8")
 
-    details_path = data_dir / "evaluations" / "bm25.json"
     details_path.parent.mkdir(parents=True, exist_ok=True)
     details_path.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
@@ -124,17 +129,24 @@ def main() -> int:
     parser.add_argument("--chunks", type=Path, default=Path("data/gold/ia04_chunks.jsonl"))
     parser.add_argument("--questions", type=Path, default=Path("evaluation/private/ia04_questions.jsonl"))
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
-    parser.add_argument("--report", type=Path, default=Path("experiments/v2-bm25.md"))
+    parser.add_argument("--report", type=Path)
     parser.add_argument("--k1", type=float, default=1.5)
     parser.add_argument("--b", type=float, default=0.75)
+    parser.add_argument("--include-metadata", action="store_true")
     args = parser.parse_args()
+    report_path = args.report or (
+        Path("experiments/v3-bm25-metadata.md")
+        if args.include_metadata
+        else Path("experiments/v2-bm25.md")
+    )
     run_bm25_evaluation(
         chunks_path=args.chunks,
         questions_path=args.questions,
         data_dir=args.data_dir,
-        report_path=args.report,
+        report_path=report_path,
         k1=args.k1,
         b=args.b,
+        include_metadata=args.include_metadata,
     )
     return 0
 

@@ -40,9 +40,11 @@ Depuis la racine du dépôt, construire les chunks IA04 puis lancer une recherch
 PYTHONPATH=src python3 -m rag_from_scratch.cli build-chunks
 PYTHONPATH=src python3 -m rag_from_scratch.cli search "Comment les agents communiquent-ils ?" --top-k 5
 PYTHONPATH=src python3 evaluation/run_bm25.py
+PYTHONPATH=src python3 evaluation/analyze_bm25.py
+PYTHONPATH=src python3 evaluation/run_bm25.py --include-metadata
 ```
 
-La commande `search` lit `data/gold/ia04_chunks.jsonl` par défaut. On peut choisir un autre fichier avec `--chunks`, ainsi que modifier `--top-k`, `--k1` et `--b`. Les résultats affichent le score BM25, la source et la page ou section quand elle est disponible. Le script d’évaluation réutilise le jeu privé de questions et écrit le rapport dans `experiments/v2-bm25.md`.
+La commande `search` lit `data/gold/ia04_chunks.jsonl` par défaut et indexe le texte, le nom du fichier source et le titre de section. `--content-only` rétablit la recherche de la baseline. On peut choisir un autre fichier avec `--chunks`, ainsi que modifier `--top-k`, `--k1` et `--b`. Les résultats affichent le score BM25, la source et la page ou section quand elle est disponible. `evaluation/analyze_bm25.py` produit l’analyse des variantes dans `experiments/v2-bm25-analysis.md`. Le script d’évaluation réutilise le jeu privé de questions : sans option, il écrit la baseline dans `experiments/v2-bm25.md` ; avec `--include-metadata`, il écrit `experiments/v3-bm25-metadata.md`.
 
 Les PDF IA04 contiennent du texte extractible. La première ingestion utilise `pdftotext -layout` page par page et conserve le numéro de page. L’audit montre que l’ordre de lecture n’est pas encore validé partout : certaines pages ont plusieurs colonnes, des tableaux ou des matrices. Une itération ultérieure pourra exploiter les coordonnées de `pdftotext -bbox-layout` pour rétablir l’ordre, en gardant les tableaux et matrices comme des blocs. Le contenu uniquement graphique qui n’apparaît pas dans la couche texte du PDF ne sera pas indexé.
 

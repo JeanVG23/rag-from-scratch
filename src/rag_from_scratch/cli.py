@@ -54,7 +54,12 @@ def _load_chunks(path: Path) -> list[Chunk]:
 def _search(args: argparse.Namespace) -> int:
     try:
         chunks = _load_chunks(args.chunks)
-        retriever = BM25Retriever(chunks, k1=args.k1, b=args.b)
+        retriever = BM25Retriever(
+            chunks,
+            k1=args.k1,
+            b=args.b,
+            include_metadata=args.include_metadata,
+        )
         results = retriever.search(" ".join(args.question), top_k=args.top_k)
     except (OSError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
@@ -98,6 +103,13 @@ def main() -> int:
     search.add_argument("--top-k", type=int, default=5)
     search.add_argument("--k1", type=float, default=1.5)
     search.add_argument("--b", type=float, default=0.75)
+    search.add_argument(
+        "--content-only",
+        action="store_false",
+        dest="include_metadata",
+        help="rank chunk text without the source filename and section title",
+    )
+    search.set_defaults(include_metadata=True)
     search.set_defaults(handler=_search)
 
     args = parser.parse_args()

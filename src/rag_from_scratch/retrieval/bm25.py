@@ -7,6 +7,7 @@ import unicodedata
 from collections import Counter
 from collections.abc import Iterable
 from dataclasses import dataclass
+from pathlib import Path
 
 from rag_from_scratch.models import Chunk
 
@@ -48,7 +49,9 @@ class BM25Retriever:
 
     The index is kept in memory, which is sufficient for the current small
     corpus. The IDF term uses ``log(1 + (N - df + 0.5) / (df + 0.5))`` so
-    scores stay non-negative.
+    scores stay non-negative. With ``include_metadata=True``, the source
+    filename (without extension) and section title are appended to the indexed
+    text and receive the same weight as chunk text.
     """
 
     def __init__(
@@ -57,6 +60,7 @@ class BM25Retriever:
         *,
         k1: float = 1.5,
         b: float = 0.75,
+        include_metadata: bool = False,
     ) -> None:
         if k1 <= 0:
             raise ValueError("k1 must be greater than zero")
@@ -66,12 +70,17 @@ class BM25Retriever:
         self.chunks = tuple(chunks)
         self.k1 = k1
         self.b = b
+        self.include_metadata = include_metadata
         self._term_frequencies: list[Counter[str]] = []
         self._document_lengths: list[int] = []
         document_frequencies: Counter[str] = Counter()
 
         for chunk in self.chunks:
-            frequencies = Counter(tokenize(chunk.text))
+            indexed_text = chunk.text
+            if include_metadata:
+                metadata = [Path(chunk.source_path).stem, chunk.section or ""]
+                indexed_text = " ".join(part for part in (indexed_text, *metadata) if part)
+            frequencies = Counter(tokenize(indexed_text))
             self._term_frequencies.append(frequencies)
             self._document_lengths.append(sum(frequencies.values()))
             document_frequencies.update(frequencies.keys())
