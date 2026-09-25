@@ -37,11 +37,12 @@ Ces données et leurs dérivés restent locaux et sont ignorés par Git. Les ind
 Depuis la racine du dépôt, construire les chunks IA04 puis lancer une recherche BM25 :
 
 ```sh
-PYTHONPATH=src python -m rag_from_scratch.cli build-chunks
-PYTHONPATH=src python -m rag_from_scratch.cli search "Comment les agents communiquent-ils ?" --top-k 5
+PYTHONPATH=src python3 -m rag_from_scratch.cli build-chunks
+PYTHONPATH=src python3 -m rag_from_scratch.cli search "Comment les agents communiquent-ils ?" --top-k 5
+PYTHONPATH=src python3 evaluation/run_bm25.py
 ```
 
-La commande `search` lit `data/gold/ia04_chunks.jsonl` par défaut. On peut choisir un autre fichier avec `--chunks`, ainsi que modifier `--top-k`, `--k1` et `--b`. Les résultats affichent le score BM25, la source et la page ou section quand elle est disponible.
+La commande `search` lit `data/gold/ia04_chunks.jsonl` par défaut. On peut choisir un autre fichier avec `--chunks`, ainsi que modifier `--top-k`, `--k1` et `--b`. Les résultats affichent le score BM25, la source et la page ou section quand elle est disponible. Le script d’évaluation réutilise le jeu privé de questions et écrit le rapport dans `experiments/v2-bm25.md`.
 
 Les PDF IA04 contiennent du texte extractible. La première ingestion utilise `pdftotext -layout` page par page et conserve le numéro de page. L’audit montre que l’ordre de lecture n’est pas encore validé partout : certaines pages ont plusieurs colonnes, des tableaux ou des matrices. Une itération ultérieure pourra exploiter les coordonnées de `pdftotext -bbox-layout` pour rétablir l’ordre, en gardant les tableaux et matrices comme des blocs. Le contenu uniquement graphique qui n’apparaît pas dans la couche texte du PDF ne sera pas indexé.
 
