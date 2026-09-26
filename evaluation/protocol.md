@@ -30,6 +30,10 @@ Les dimensions sont notées séparément ; on ne les réduit pas à un score glo
 
 Les variantes de formulation sont acceptées si elles expriment le même fait. Une réponse ne doit pas être pénalisée parce qu’elle ne reprend pas les mots exacts du corrigé. Le rapport de génération devra également consigner les erreurs représentatives sans reproduire le contenu privé des cours.
 
+`evaluation/run_generation.py` prépare une fiche locale `data/evaluations/generation_review.jsonl`. Pour chaque question, elle conserve la réponse du modèle, le contexte réellement fourni, les critères attendus et des champs à remplir : `coverage_score` pour chaque fait atomique, puis `groundedness_0_to_2`, `citation_quality_0_to_2` et `abstention_0_or_1`. La fiche contient le texte de passages du cours ; elle reste donc dans `data/`, ignoré par Git. Après génération, noter les réponses selon la grille ci-dessus avant de tirer des conclusions sur la qualité du modèle.
+
+Les paramètres de génération de la première baseline sont une température de `0`, le raisonnement désactivé et une limite de `384` tokens (`--think` et `--num-predict` permettent de les modifier). Ils sont enregistrés dans chaque ligne de la fiche afin que les réponses restent comparables et reproductibles.
+
 ## Limites du jeu pilote
 
 Le jeu est petit et conçu à la main ; il sert à comparer les premières itérations, pas à établir une mesure générale. Les documents IA04 ne sont pas diffusés avec le projet. Les rapports publics devront se limiter aux métriques et aux observations qui ne reproduisent pas leur contenu.

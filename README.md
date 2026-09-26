@@ -39,12 +39,18 @@ Depuis la racine du dépôt, construire les chunks IA04 puis lancer une recherch
 ```sh
 PYTHONPATH=src python3 -m rag_from_scratch.cli build-chunks
 PYTHONPATH=src python3 -m rag_from_scratch.cli search "Comment les agents communiquent-ils ?" --top-k 5
+OLLAMA_CHAT_MODEL=qwen3.5:4b PYTHONPATH=src python3 -m rag_from_scratch.cli ask "Comment les agents communiquent-ils ?"
 PYTHONPATH=src python3 evaluation/run_bm25.py
 PYTHONPATH=src python3 evaluation/analyze_bm25.py
 PYTHONPATH=src python3 evaluation/run_bm25.py --include-metadata
+OLLAMA_CHAT_MODEL=qwen3.5:4b PYTHONPATH=src python3 evaluation/run_generation.py
 ```
 
 La commande `search` lit `data/gold/ia04_chunks.jsonl` par défaut et indexe le texte, le nom du fichier source et le titre de section. `--content-only` rétablit la recherche de la baseline. On peut choisir un autre fichier avec `--chunks`, ainsi que modifier `--top-k`, `--k1` et `--b`. Les résultats affichent le score BM25, la source et la page ou section quand elle est disponible. `evaluation/analyze_bm25.py` produit l’analyse des variantes dans `experiments/v2-bm25-analysis.md`. Le script d’évaluation réutilise le jeu privé de questions : sans option, il écrit la baseline dans `experiments/v2-bm25.md` ; avec `--include-metadata`, il écrit `experiments/v3-bm25-metadata.md`.
+
+La commande `ask` assemble les cinq premiers passages BM25 avec leurs repères `[S1]`, `[S2]`, etc., puis appelle l’API locale `/api/chat` d’Ollama. Le modèle est choisi avec `OLLAMA_CHAT_MODEL` ou `--model` ; l’hôte peut être changé avec `OLLAMA_HOST` ou `--host`. La génération demande une réponse en français, fondée sur les seuls passages récupérés, et une abstention lorsque le contexte ne permet pas de répondre. Par défaut, la température est `0`, le raisonnement est désactivé et la sortie est limitée à 384 tokens ; `--think` l’active et `--num-predict` change la limite. Les références fournies au modèle sont affichées après sa réponse.
+
+`evaluation/run_generation.py` génère une réponse pour chaque question, y compris celles conçues pour mesurer l’abstention. Il produit `data/evaluations/generation_review.jsonl`, une fiche privée contenant la réponse, les passages avec leur texte, les critères de référence et des champs vides pour la notation. Ce fichier peut contenir du contenu des supports et reste dans `data/`, ignoré par Git. Les paramètres de recherche et de génération sont inscrits dans chaque ligne. Les dimensions à noter et leurs échelles sont décrites dans `evaluation/protocol.md`. Une fiche existante n’est pas remplacée par défaut ; utiliser `--overwrite` la recrée et efface les scores et notes qui s’y trouveraient. `--limit 1` permet de générer uniquement la première question pour vérifier la configuration du modèle. La première revue agrégée, sans question ni extrait du cours, se trouve dans `experiments/v4-generation.md`.
 
 Les PDF IA04 contiennent du texte extractible. La première ingestion utilise `pdftotext -layout` page par page et conserve le numéro de page. L’audit montre que l’ordre de lecture n’est pas encore validé partout : certaines pages ont plusieurs colonnes, des tableaux ou des matrices. Une itération ultérieure pourra exploiter les coordonnées de `pdftotext -bbox-layout` pour rétablir l’ordre, en gardant les tableaux et matrices comme des blocs. Le contenu uniquement graphique qui n’apparaît pas dans la couche texte du PDF ne sera pas indexé.
 
@@ -54,7 +60,7 @@ Les documents LO23 sont hors du premier périmètre. Certains PDF LO23 présente
 
 Dans les premières étapes, les briques principales seront écrites à la main, sans framework RAG, base vectorielle ni bibliothèque de recherche qui masque leur fonctionnement. Les bibliothèques de la collection standard de Python pourront être utilisées quand elles ne remplacent pas une brique étudiée.
 
-Les premières versions seront des **baselines de recherche** : elles retrouveront et afficheront des passages pertinents, sans prétendre encore produire des réponses générées. Une version ultérieure ajoutera un modèle de génération, avec les passages récupérés comme contexte et des références dans la réponse.
+Les premières versions sont des **baselines de recherche**. La commande `ask` ajoute maintenant une première génération locale avec les passages récupérés comme contexte et des références dans la réponse ; sa qualité doit encore être mesurée avec la grille du protocole.
 
 ## Itérations prévues
 
@@ -64,7 +70,7 @@ Chaque étape devra rester exécutable et avoir une évaluation associée.
 2. **Baseline naïve** — découper simplement les documents et classer les passages à partir des mots communs avec la question. Cette version servira de référence et restera archivée.
 3. **Ingestion et découpage** — mieux préserver les titres, pages, métadonnées, frontières de sections et chevauchements entre passages.
 4. **Recherche lexicale** — implémenter et comparer des méthodes comme TF-IDF et BM25, sans déléguer le classement à une bibliothèque spécialisée.
-5. **Assemblage et génération** — fournir les meilleurs passages à un modèle, demander une réponse fondée sur ces sources et afficher les citations. La réponse devra pouvoir signaler que le corpus ne permet pas de conclure.
+5. **Assemblage et génération** — première version disponible avec BM25 et Ollama local ; évaluer couverture, fidélité au contexte, citations et abstention avec la grille dédiée.
 6. **Comparaison** — mesurer les variantes manuelles sur le même corpus et les mêmes questions, puis les comparer à une solution utilisant des bibliothèques établies.
 
 Cet ordre pourra évoluer si les évaluations montrent qu’une autre amélioration est prioritaire. Les changements de méthode et leurs raisons seront consignés.

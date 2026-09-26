@@ -3,24 +3,20 @@
 from __future__ import annotations
 
 import json
-import os
 import urllib.error
 import urllib.request
 from collections.abc import Sequence
+
+from rag_from_scratch.ollama import ollama_base_url
 
 
 class EmbeddingError(RuntimeError):
     """Raised when Ollama cannot create the requested embeddings."""
 
 
-def _base_url(host: str | None = None) -> str:
-    value = (host or os.environ.get("OLLAMA_HOST") or "http://127.0.0.1:11434").rstrip("/")
-    return value if "://" in value else f"http://{value}"
-
-
 def get_model_info(model: str, *, host: str | None = None) -> dict[str, int | str]:
     """Return the installed Ollama digest and byte size for a model alias."""
-    base_url = _base_url(host)
+    base_url = ollama_base_url(host)
     request = urllib.request.Request(f"{base_url}/api/tags", method="GET")
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
@@ -50,7 +46,7 @@ def embed_texts(
     if not texts:
         return []
 
-    base_url = _base_url(host)
+    base_url = ollama_base_url(host)
     embeddings: list[list[float]] = []
     for start in range(0, len(texts), batch_size):
         batch = list(texts[start : start + batch_size])

@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
 from rag_from_scratch.chunking import chunk_units, write_chunks_jsonl
+from rag_from_scratch.generation import GenerationError, generate_answer, prepare_context
 from rag_from_scratch.ingestion import load_ia04_units, write_units_jsonl
 from rag_from_scratch.models import Chunk
 from rag_from_scratch.retrieval import BM25Retriever
@@ -87,6 +89,49 @@ def _search(args: argparse.Namespace) -> int:
     return 0
 
 
+def _ask(args: argparse.Namespace) -> int:
+    model = args.model or os.environ.get("OLLAMA_CHAT_MODEL")
+    if not model:
+        print(
+            "Error: specify a chat model with --model or set OLLAMA_CHAT_MODEL.",
+            file=sys.stderr,
+        )
+        return 2
+
+    try:
+        chunks = _load_chunks(args.chunks)
+        retriever = BM25Retriever(
+            chunks,
+            k1=args.k1,
+            b=args.b,
+            include_metadata=True,
+        )
+        results = retriever.search(" ".join(args.question), top_k=args.top_k)
+        context = prepare_context(results)
+        answer = generate_answer(
+            " ".join(args.question),
+            context,
+            model=model,
+            host=args.host,
+            timeout=args.timeout,
+            think=args.think,
+            num_predict=args.num_predict,
+        )
+    except (OSError, ValueError, GenerationError) as error:
+        print(f"Error: {error}", file=sys.stderr)
+        return 2
+
+    print(answer)
+    if context.citations:
+        print("\nRéférences fournies au modèle :")
+        for citation in context.citations:
+            print(
+                f"[{citation.label}] {citation.source_path} "
+                f"({citation.locator()}; chunk {citation.chunk_id})"
+            )
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(prog="rag-from-scratch")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -111,6 +156,19 @@ def main() -> int:
     )
     search.set_defaults(include_metadata=True)
     search.set_defaults(handler=_search)
+
+    ask = subparsers.add_parser("ask", help="answer a question with BM25 and a local Ollama model")
+    ask.add_argument("question", nargs="+", help="question about IA04")
+    ask.add_argument("--chunks", type=Path, default=Path("data/gold/ia04_chunks.jsonl"))
+    ask.add_argument("--model", help="Ollama chat model (or set OLLAMA_CHAT_MODEL)")
+    ask.add_argument("--host", help="Ollama host (defaults to OLLAMA_HOST or localhost)")
+    ask.add_argument("--top-k", type=int, default=5)
+    ask.add_argument("--k1", type=float, default=1.5)
+    ask.add_argument("--b", type=float, default=0.75)
+    ask.add_argument("--timeout", type=float, default=300)
+    ask.add_argument("--num-predict", type=int, default=384)
+    ask.add_argument("--think", action="store_true", help="enable model reasoning when supported")
+    ask.set_defaults(handler=_ask)
 
     args = parser.parse_args()
     return args.handler(args)
