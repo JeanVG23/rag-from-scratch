@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from rag_from_scratch.generation import GenerationError, generate_answer, prepare_context
+from rag_from_scratch.generation import ABSTENTION, GenerationError, generate_answer, prepare_context
 from rag_from_scratch.models import Chunk
 from rag_from_scratch.retrieval import BM25Retriever
 from rag_from_scratch.retrieval_metrics import load_jsonl
@@ -31,6 +32,7 @@ def run_generation_review(
     overwrite: bool = False,
     think: bool = False,
     num_predict: int = 384,
+    min_bm25_score: float | None = None,
 ) -> int:
     """Generate answers and save a local JSONL worksheet for human scoring."""
     chunks = [Chunk(**record) for record in load_jsonl(chunks_path)]
@@ -43,6 +45,10 @@ def run_generation_review(
         raise ValueError("top_k must be greater than zero")
     if num_predict <= 0:
         raise ValueError("num_predict must be greater than zero")
+    if min_bm25_score is not None and (
+        not math.isfinite(min_bm25_score) or min_bm25_score < 0
+    ):
+        raise ValueError("min_bm25_score must be a finite, non-negative number")
     if limit is not None and limit <= 0:
         raise ValueError("limit must be greater than zero")
     if limit is not None:
@@ -60,14 +66,22 @@ def run_generation_review(
         for number, question in enumerate(questions, start=1):
             results = retriever.search(question["question"], top_k=top_k)
             context = prepare_context(results)
-            answer = generate_answer(
-                question["question"],
-                context,
-                model=model,
-                host=host,
-                timeout=timeout,
-                think=think,
-                num_predict=num_predict,
+            top_score = results[0].score if results else None
+            gate_triggered = min_bm25_score is not None and (
+                top_score is None or top_score < min_bm25_score
+            )
+            answer = (
+                ABSTENTION
+                if gate_triggered
+                else generate_answer(
+                    question["question"],
+                    context,
+                    model=model,
+                    host=host,
+                    timeout=timeout,
+                    think=think,
+                    num_predict=num_predict,
+                )
             )
             record: dict[str, Any] = {
                 "generated_at": generated_at,
@@ -83,6 +97,9 @@ def run_generation_review(
                     "k1": k1,
                     "b": b,
                     "include_metadata": True,
+                    "min_bm25_score": min_bm25_score,
+                    "top_score": top_score,
+                    "abstention_gate_triggered": gate_triggered,
                 },
                 "question_id": question["id"],
                 "question": question["question"],
@@ -148,6 +165,11 @@ def main() -> int:
     parser.add_argument("--b", type=float, default=0.75)
     parser.add_argument("--timeout", type=float, default=300)
     parser.add_argument("--num-predict", type=int, default=384)
+    parser.add_argument(
+        "--min-bm25-score",
+        type=float,
+        help="abstain below this experimental top-result BM25 threshold",
+    )
     parser.add_argument("--think", action="store_true", help="enable model reasoning when supported")
     parser.add_argument("--limit", type=int, help="generate only the first N questions")
     parser.add_argument(
@@ -174,6 +196,7 @@ def main() -> int:
             overwrite=args.overwrite,
             think=args.think,
             num_predict=args.num_predict,
+            min_bm25_score=args.min_bm25_score,
         )
     except (OSError, ValueError, GenerationError) as error:
         print(f"Error: {error}", file=sys.stderr)

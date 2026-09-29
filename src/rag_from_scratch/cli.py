@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import sys
 from pathlib import Path
 
 from rag_from_scratch.chunking import chunk_units, write_chunks_jsonl
-from rag_from_scratch.generation import GenerationError, generate_answer, prepare_context
+from rag_from_scratch.generation import ABSTENTION, GenerationError, generate_answer, prepare_context
 from rag_from_scratch.ingestion import load_ia04_units, write_units_jsonl
 from rag_from_scratch.models import Chunk
 from rag_from_scratch.retrieval import BM25Retriever
@@ -97,6 +98,11 @@ def _ask(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 2
+    if args.min_bm25_score is not None and (
+        not math.isfinite(args.min_bm25_score) or args.min_bm25_score < 0
+    ):
+        print("Error: --min-bm25-score must be a finite, non-negative number.", file=sys.stderr)
+        return 2
 
     try:
         chunks = _load_chunks(args.chunks)
@@ -107,6 +113,11 @@ def _ask(args: argparse.Namespace) -> int:
             include_metadata=True,
         )
         results = retriever.search(" ".join(args.question), top_k=args.top_k)
+        if args.min_bm25_score is not None and (
+            not results or results[0].score < args.min_bm25_score
+        ):
+            print(ABSTENTION)
+            return 0
         context = prepare_context(results)
         answer = generate_answer(
             " ".join(args.question),
@@ -165,6 +176,11 @@ def main() -> int:
     ask.add_argument("--top-k", type=int, default=5)
     ask.add_argument("--k1", type=float, default=1.5)
     ask.add_argument("--b", type=float, default=0.75)
+    ask.add_argument(
+        "--min-bm25-score",
+        type=float,
+        help="abstain below this experimental top-result BM25 threshold",
+    )
     ask.add_argument("--timeout", type=float, default=300)
     ask.add_argument("--num-predict", type=int, default=384)
     ask.add_argument("--think", action="store_true", help="enable model reasoning when supported")
