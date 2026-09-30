@@ -13,7 +13,32 @@ from rag_from_scratch.chunking import chunk_units, write_chunks_jsonl
 from rag_from_scratch.generation import ABSTENTION, GenerationError, generate_answer, prepare_context
 from rag_from_scratch.ingestion import load_ia04_units, write_units_jsonl
 from rag_from_scratch.models import Chunk
-from rag_from_scratch.retrieval import BM25Retriever
+from rag_from_scratch.retrieval import BM25Retriever, DenseRetriever, HybridRetriever
+
+
+def _build_retriever(args: argparse.Namespace, chunks: list[Chunk]):
+    method = getattr(args, "retriever", "bm25").lower()
+    if method == "dense":
+        return DenseRetriever(
+            chunks,
+            model=getattr(args, "dense_model", "bge-m3"),
+            index_path=getattr(args, "index", Path("data/indexes/bge-m3.jsonl")),
+            host=getattr(args, "host", None),
+        )
+    if method == "hybrid":
+        return HybridRetriever(
+            chunks,
+            dense_model=getattr(args, "dense_model", "bge-m3"),
+            dense_index_path=getattr(args, "index", Path("data/indexes/bge-m3.jsonl")),
+            host=getattr(args, "host", None),
+            k=getattr(args, "rrf_k", 60),
+        )
+    return BM25Retriever(
+        chunks,
+        k1=getattr(args, "k1", 1.5),
+        b=getattr(args, "b", 0.75),
+        include_metadata=getattr(args, "include_metadata", True),
+    )
 
 
 def _build_chunks(args: argparse.Namespace) -> int:
@@ -57,12 +82,7 @@ def _load_chunks(path: Path) -> list[Chunk]:
 def _search(args: argparse.Namespace) -> int:
     try:
         chunks = _load_chunks(args.chunks)
-        retriever = BM25Retriever(
-            chunks,
-            k1=args.k1,
-            b=args.b,
-            include_metadata=args.include_metadata,
-        )
+        retriever = _build_retriever(args, chunks)
         results = retriever.search(" ".join(args.question), top_k=args.top_k)
     except (OSError, ValueError) as error:
         print(f"Error: {error}", file=sys.stderr)
@@ -106,12 +126,7 @@ def _ask(args: argparse.Namespace) -> int:
 
     try:
         chunks = _load_chunks(args.chunks)
-        retriever = BM25Retriever(
-            chunks,
-            k1=args.k1,
-            b=args.b,
-            include_metadata=True,
-        )
+        retriever = _build_retriever(args, chunks)
         results = retriever.search(" ".join(args.question), top_k=args.top_k)
         if args.min_bm25_score is not None and (
             not results or results[0].score < args.min_bm25_score
@@ -153,9 +168,13 @@ def main() -> int:
     build.add_argument("--overlap-words", type=int, default=50)
     build.set_defaults(handler=_build_chunks)
 
-    search = subparsers.add_parser("search", help="search IA04 chunks with BM25")
+    search = subparsers.add_parser("search", help="search IA04 chunks with BM25, Dense or Hybrid")
     search.add_argument("question", nargs="+", help="question or search terms")
     search.add_argument("--chunks", type=Path, default=Path("data/gold/ia04_chunks.jsonl"))
+    search.add_argument("--retriever", choices=["bm25", "dense", "hybrid"], default="hybrid")
+    search.add_argument("--dense-model", default="bge-m3")
+    search.add_argument("--index", type=Path, default=Path("data/indexes/bge-m3.jsonl"))
+    search.add_argument("--rrf-k", type=int, default=60)
     search.add_argument("--top-k", type=int, default=5)
     search.add_argument("--k1", type=float, default=1.5)
     search.add_argument("--b", type=float, default=0.75)
@@ -168,9 +187,13 @@ def main() -> int:
     search.set_defaults(include_metadata=True)
     search.set_defaults(handler=_search)
 
-    ask = subparsers.add_parser("ask", help="answer a question with BM25 and a local Ollama model")
+    ask = subparsers.add_parser("ask", help="answer a question with Hybrid/BM25 and local Ollama")
     ask.add_argument("question", nargs="+", help="question about IA04")
     ask.add_argument("--chunks", type=Path, default=Path("data/gold/ia04_chunks.jsonl"))
+    ask.add_argument("--retriever", choices=["bm25", "dense", "hybrid"], default="hybrid")
+    ask.add_argument("--dense-model", default="bge-m3")
+    ask.add_argument("--index", type=Path, default=Path("data/indexes/bge-m3.jsonl"))
+    ask.add_argument("--rrf-k", type=int, default=60)
     ask.add_argument("--model", help="Ollama chat model (or set OLLAMA_CHAT_MODEL)")
     ask.add_argument("--host", help="Ollama host (defaults to OLLAMA_HOST or localhost)")
     ask.add_argument("--top-k", type=int, default=5)
