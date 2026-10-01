@@ -129,6 +129,9 @@ Dans les premières étapes, les briques principales seront écrites à la main,
 
 Les premières versions sont des **baselines de recherche**. La commande `ask` ajoute maintenant une première génération locale avec les passages récupérés comme contexte et des références dans la réponse ; sa qualité doit encore être mesurée avec la grille du protocole.
 
+**Méthode de travail.** Ce dépôt est un projet d'apprentissage réalisé avec l'aide d'un assistant IA (Claude Code), pour le code comme pour une partie de la rédaction des rapports.
+Les choix d'évaluation (questions, annotations, lecture des résultats) et la relecture critique des affirmations sont de mon fait ; les mesures sont à lire avec les limites indiquées plus bas.
+
 ## Itérations prévues
 
 Chaque étape devra rester exécutable et avoir une évaluation associée.
