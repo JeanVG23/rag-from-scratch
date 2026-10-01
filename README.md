@@ -1,13 +1,12 @@
-# RAG From Scratch — Modular Local Engine
+# RAG From Scratch : Modular Local Engine
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Recall@3](https://img.shields.io/badge/Recall%403-100%25-brightgreen.svg)](#tableau-comparatif-des-performances-split-test-indépendant)
-[![MRR](https://img.shields.io/badge/MRR-0.950-brightgreen.svg)](#tableau-comparatif-des-performances-split-test-indépendant)
-[![Abstention](https://img.shields.io/badge/Abstention-100%25-brightgreen.svg)](#tableau-comparatif-des-performances-split-test-indépendant)
+[![Recall@3 test](https://img.shields.io/badge/Recall%403_(test)-100%25-brightgreen.svg)](#tableau-comparatif-des-performances)
+[![Abstention test](https://img.shields.io/badge/Abstention_(test)-5%2F5-brightgreen.svg)](#limites-et-précautions-de-lecture)
 [![Framework Dependencies](https://img.shields.io/badge/Framework_Dependencies-0-orange.svg)](#philosophie)
 
-Un moteur de **Retrieval-Augmented Generation (RAG)** développé de zéro en Python pur (sans framework tiers comme LangChain ou LlamaIndex). Il combine une recherche hybride (**BM25 lexical enrichi + Embeddings denses BGE-M3 fusionnés par Reciprocal Rank Fusion**), un modèle de langage local via **Ollama (Qwen 3.5)**, des citations traçables et une consigne d'exclusion stricte anti-hallucination.
+Un moteur de **Retrieval-Augmented Generation (RAG)** développé de zéro en Python, sans framework RAG (ni LangChain ni LlamaIndex). Il dépend de `numpy`, de `pdftotext` (poppler) et d'un serveur Ollama local. Il combine une recherche hybride (**BM25 lexical enrichi + Embeddings denses BGE-M3 fusionnés par Reciprocal Rank Fusion**), un modèle de langage local via **Ollama (Qwen 3.5)**, des citations traçables et une consigne d'exclusion stricte anti-hallucination.
 
 Le corpus pilote porte sur l'UV de master **IA04 (Systèmes Multi-Agents)** : 20 documents sources (supports de cours Markdown, sujets de TD, annales d'examens en PDF).
 
@@ -39,7 +38,7 @@ flowchart TD
         J --> K[Ollama Local : Qwen 3.5 4B]
         K --> L{Information présente ?}
         L -->|Oui| M[Réponse étayée + Citations exactes]
-        L -->|Non / Distracteur| N["« Je ne peux pas le déterminer... » (100% de réussite)"]
+        L -->|Non / Distracteur| N["« Je ne peux pas le déterminer... » (5/5 sur le split test)"]
     end
 ```
 
@@ -47,10 +46,10 @@ flowchart TD
 
 ## Points Clés & Différenciation
 
-- **Zéro boîte noire** : Le tokenizer, le calcul Okapi BM25, la similarité vectorielle cosinus et la fusion RRF sont entièrement implémentés sans dépendance à des frameworks lourds.
+- **Zéro boîte noire** : Le tokenizer, le calcul Okapi BM25, la similarité vectorielle cosinus et la fusion RRF sont entièrement implémentés sans framework RAG.
 - **Indexation instantanée** : Moins de 0,1 seconde en mémoire (contre ~40 secondes pour les solutions vectorielles pures).
-- **Fiabilité industrielle** : Taux d'abstention de **100 %** sur les distracteurs et questions sans réponse grâce à une consigne d'exclusion stricte.
-- **Rigueur scientifique** : Benchmark sur 30 questions privées, partitionnées en sous-ensembles étanches `dev` (calibrage) et `test` (validation finale en aveugle), comparé au standard de l'industrie (**LlamaIndex**).
+- **Abstention** : 5 abstentions correctes sur 5 questions sans réponse du split `test`, grâce à une consigne d'exclusion stricte (échantillon très petit, voir les limites ci-dessous).
+- **Rigueur scientifique** : Benchmark sur 30 questions privées, partitionnées en sous-ensembles étanches `dev` (calibrage) et `test` (validation finale en aveugle), avec une baseline LlamaIndex mesurée sur le split `dev` uniquement.
 
 ---
 
@@ -134,12 +133,12 @@ Les premières versions sont des **baselines de recherche**. La commande `ask` a
 
 Chaque étape devra rester exécutable et avoir une évaluation associée.
 
-1. **Corpus et questions d’évaluation** — inventorier les sources, préparer des questions représentatives et noter les documents ou passages attendus.
-2. **Baseline naïve** — découper simplement les documents et classer les passages à partir des mots communs avec la question. Cette version servira de référence et restera archivée.
-3. **Ingestion et découpage** — mieux préserver les titres, pages, métadonnées, frontières de sections et chevauchements entre passages.
-4. **Recherche lexicale** — implémenter et comparer des méthodes comme TF-IDF et BM25, sans déléguer le classement à une bibliothèque spécialisée.
-5. **Assemblage et génération** — première version disponible avec BM25 et Ollama local ; évaluer couverture, fidélité au contexte, citations et abstention avec la grille dédiée.
-6. **Comparaison** — mesurer les variantes manuelles sur le même corpus et les mêmes questions, puis les comparer à une solution utilisant des bibliothèques établies.
+1. **Corpus et questions d’évaluation** : inventorier les sources, préparer des questions représentatives et noter les documents ou passages attendus.
+2. **Baseline naïve** : découper simplement les documents et classer les passages à partir des mots communs avec la question. Cette version servira de référence et restera archivée.
+3. **Ingestion et découpage** : mieux préserver les titres, pages, métadonnées, frontières de sections et chevauchements entre passages.
+4. **Recherche lexicale** : implémenter et comparer des méthodes comme TF-IDF et BM25, sans déléguer le classement à une bibliothèque spécialisée.
+5. **Assemblage et génération** : première version disponible avec BM25 et Ollama local ; évaluer couverture, fidélité au contexte, citations et abstention avec la grille dédiée.
+6. **Comparaison** : mesurer les variantes manuelles sur le même corpus et les mêmes questions, puis les comparer à une solution utilisant des bibliothèques établies.
 
 Cet ordre pourra évoluer si les évaluations montrent qu’une autre amélioration est prioritaire. Les changements de méthode et leurs raisons seront consignés.
 
@@ -181,12 +180,25 @@ Le projet a atteint l'ensemble de ses objectifs initiaux et dispose d'une suite 
 3. **Génération & Consigne stricte d'abstention** : Modèle local Ollama (`qwen3.5:4b`) avec citations déterministes `[S1]`, `[S2]` et consigne stricte éliminant les hallucinations sur les distracteurs et questions sans réponse.
 4. **Protocole d'évaluation scellé** : Jeu de 30 questions partitionné en sous-ensembles étanches `dev` (calibrage) et `test` (validation finale en aveugle).
 
-### Tableau comparatif des performances (Split `test` indépendant)
+### Tableau comparatif des performances
 
-| Système | Méthode d'indexation | Recall@3 | Recall@5 | MRR | Abstention (Distracteurs) | Dépendances tierces |
-| :--- | :--- | ---: | ---: | ---: | ---: | :--- |
-| **BM25 baseline (v3)** | Lexical TF-IDF RAM | 1.000 | 1.000 | 1.000 | 0 % *(hallucinait les distracteurs)* | 0 framework |
-| **LlamaIndex baseline (v7)** | Dense vectoriel (`bge-m3`) | 0.909 | 1.000 | 0.933 | 100 % (5/5) | ~80 paquets Python |
-| **Notre RAG Hybride (v9)** | **BM25 + Dense RRF ($k=60$)** | **1.000** | **1.000** | **0.950** | **100 % (5/5)** | **0 framework** |
+Retrieval sur les 10 questions répondables de chaque split. L'abstention porte sur 5 questions sans réponse par split. Les cases « non évalué » n'ont pas été mesurées.
+
+| Système | Split | Recall@3 | Recall@5 | MRR | Abstention |
+| :--- | :--- | ---: | ---: | ---: | :--- |
+| BM25 + métadonnées (v3) | dev | 0.909 | 1.000 | 0.833 | 0/5 (ancien prompt, hallucinations) |
+| LlamaIndex, dense `bge-m3` (v7) | dev | 0.909 | 1.000 | 0.933 | 5/5 |
+| Hybride BM25 + dense RRF, k=60 (v8) | dev | 1.000 | 1.000 | 0.950 | 5/5 |
+| BM25 + métadonnées | test | 1.000 | 1.000 | 1.000 | non évalué |
+| Dense `bge-m3` | test | 0.800 | 0.900 | 0.833 | non évalué |
+| Hybride BM25 + dense RRF, k=60 (v9) | test | 1.000 | 1.000 | 0.950 | 5/5 |
+| LlamaIndex | test | non évalué | non évalué | non évalué | non évalué |
+
+### Limites et précautions de lecture
+
+- **L'hybride n'est pas démontré supérieur à BM25.** Sur `dev` (où il a été choisi), il fait mieux (MRR 0.950 contre 0.833). Sur `test`, BM25 seul fait au moins aussi bien (MRR 1.000 contre 0.950, Recall@1 1.000 contre 0.900). Avec 10 questions par split, un seul rang d'écart ne permet pas de conclure.
+- **LlamaIndex** n'a été évalué que sur `dev`, avec un découpage différent (383 chunks contre 366). Il n'est pas comparé sur `test`.
+- **Abstention 5/5** : échantillon de 5 questions, notation manuelle par une seule personne, consigne de prompt retouchée après l'observation d'échecs sur `dev` (voir `experiments/v5-q16-diagnostic.md`). Sur `test`, le système s'abstient aussi à tort sur une question répondable (`q09`).
+- **Dépendances** : « sans framework RAG » ne veut pas dire sans dépendance. Le projet requiert `numpy`, `pdftotext`, Ollama, ainsi que les modèles `bge-m3` et `qwen3.5:4b`.
 
 Les rapports détaillés de chaque itération sont consultables dans le répertoire `experiments/` (de `v1` à `v9`).

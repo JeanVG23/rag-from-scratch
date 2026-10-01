@@ -28,12 +28,9 @@ Généré le 2026-09-30 21:38 UTC sur `ia04_questions_dev.jsonl` (15 questions :
 | `q17` | Comment est calculée la note finale d'IA04 et quelle est la compo... | ✗ (rang 3) | ✓ (rang 1) | ✓ (rang 1) |
 | `q19` | Quel est le comportement de l'instruction defer en Go et dans que... | ✓ (rang 1) | ✗ (rang 2) | ✓ (rang 1) |
 
-## 3. Conclusions techniques
+## 3. Conclusions techniques et limites
 
-1. **Complémentarité lexicale / sémantique** :
-   - BM25 performe sur les termes techniques exacts mais échoue lorsque le vocabulaire diffère.
-   - Dense excelle sur les reformulations sémantiques mais manque de précision sur les syntaxes rares.
-   - **Hybride RRF** surmonte les deux faiblesses en assurant un consensus robuste.
-2. **Impact sur la génération** :
-   - L'apport de l'hybride permet à la génération de récupérer les preuves manquantes sans jamais sacrifier la vitesse.
-
+1. **Résultat sur `dev`** : l'hybride RRF obtient le meilleur MRR (0.950 contre 0.833 pour BM25 et 0.825 pour le dense) et Recall@3 = 1.000. Ce split sert à choisir la méthode, donc cet avantage est optimiste.
+2. **Lecture qualitative** (hypothèse, non testée) : BM25 semble favorisé quand les termes techniques sont exacts, le dense quand le vocabulaire est reformulé, et la fusion rattrape certains cas (`q01`, `q17`) mais pas tous (`q13`).
+3. **Limite** : 10 questions répondables. Sur le split `test` (voir v9), BM25 seul fait au moins aussi bien que l'hybride (MRR 1.000 contre 0.950). La supériorité de l'hybride n'est pas démontrée.
+4. **Génération** : l'impact de l'hybride sur la génération n'a pas été mesuré dans ce rapport.

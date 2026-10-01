@@ -35,7 +35,7 @@ Fiche d'évaluation détaillée : `data/evaluations/llamaindex_review_dev.jsonl`
 | Dimension | RAG from-scratch | LlamaIndex |
 | --- | --- | --- |
 | **Lignes de code (cœur)** | ~990 lignes | ~30 lignes |
-| **Dépendances tierces** | 0 framework RAG (stdlib Python + `pdftotext`) | ~80 paquets installés (`llama-index-core`, `pydantic`, `sqlalchemy`, etc.) |
+| **Dépendances tierces** | aucun framework RAG (stdlib Python, `numpy`, `pdftotext`, Ollama) | ~80 paquets installés (`llama-index-core`, `pydantic`, `sqlalchemy`, etc.) |
 | **Vitesse d'indexation** | Instantanée (< 0.02s en RAM pour BM25) | 37.5s (calcul de 383 embeddings BGE-M3 sur GPU/CPU) |
 | **Découpage documentaire** | Découpage fenêtres 400 mots + 50 overlap (366 chunks) | `SentenceSplitter(512, 50)` LlamaIndex (383 chunks) |
 | **Transparence & Débogage** | Totale : chaque formule (IDF, BM25, prompt) est explicite | Boîte noire : abstractions imbriquées (`Node`, `Synthesizer`, etc.) |
@@ -46,7 +46,7 @@ Fiche d'évaluation détaillée : `data/evaluations/llamaindex_review_dev.jsonl`
    - LlamaIndex avec embeddings denses `bge-m3` obtient un **Recall@5 de 1.000**, un **Recall@1 de 0.818** et un **MRR de 0.933** sur les questions répondables du split `dev`.
    - Ces résultats sont quasiment identiques à notre BM25 avec métadonnées (Recall@5 = 1.000, Recall@1 = 0.800, MRR = 0.929).
 2. **Abstention & Robustesse aux distracteurs (Génération)** :
-   - C'est le point d'enseignement majeur : **LlamaIndex réussit 5 abstentions sur 5 (100 % de réussite)** sur le split `dev`.
+   - C'est le point d'enseignement majeur : **LlamaIndex réussit 5 abstentions sur 5 (5/5, échantillon très réduit)** sur le split `dev`.
    - En particulier sur **`q16`**, qui provoquait une hallucination tenace dans notre baseline initiale (le modèle affirmait qu'il y avait 24 étudiants en reprenant un exercice de TD sur une machine à café), la recherche dense BGE-M3 combinée au `PromptTemplate` strict de LlamaIndex permet au modèle de s'abstenir sans inventer de chiffre.
    - Sur **`q29`** (port TCP par défaut inexistant), le modèle explique même avec pertinence que le port 8888 apparaît dans un exemple de code mais n'est pas le port officiel du sujet.
 3. **Compromis d'ingénierie** :

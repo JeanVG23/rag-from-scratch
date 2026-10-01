@@ -44,28 +44,29 @@ Moteur de recherche : **Hybride RRF** ($k=60$).
 | `q28` | Date précise de la simulation en janvier 2026 | `Je ne peux pas le déterminer à partir du corpus IA04 fourni.` | **Succès (Abstention)** |
 | `q30` | Règles de borrowing Rust dans le cours Go | `Je ne peux pas le déterminer à partir du corpus IA04 fourni.` | **Succès (Abstention)** |
 
-**Taux d'abstention sur le split `test` : 5 / 5 (100.0 %)**.  
+**Taux d'abstention sur le split `test` : 5 / 5 (petit échantillon)**.  
 Aucune hallucination observée sur les 5 distracteurs inédits.
 
 ### B. Comportement sur les 10 questions répondables inédites
 
 * **9 / 10 réponses étayées et citées** avec une conformité totale aux critères atomiques attendus (`q02`, `q04`, `q07`, `q11`, `q14`, `q18`, `q20`, `q21`, `q22`).
 * Les citations `[S1]`, `[S2]` pointent systématiquement vers les sections exactes des supports et annales.
-* **1 abstention prudente (`q09`)** : Le modèle a préféré s'abstenir face à une ambiguïté textuelle (le TD8 contient deux jeux étudiant les équilibres purs et mixtes : la guerre des sexes et pierre-feuille-ciseaux).
+* **1 abstention à tort (`q09`)** : question répondable, le modèle a préféré s'abstenir face à une ambiguïté textuelle (le TD8 contient deux jeux étudiant les équilibres purs et mixtes : la guerre des sexes et pierre-feuille-ciseaux).
 
 ## 4. Synthèse globale du projet RAG From-Scratch
 
 | Étape de l'architecture | Version | Recall@3 | Recall@5 | MRR | Abstention dev | Abstention test | Dépendances |
 | :--- | :---: | ---: | ---: | ---: | ---: | ---: | :--- |
-| **BM25 baseline initiale** | v3 | 0.909 | 1.000 | 0.833 | 0 / 5 (hallucinations) | - | 0 framework |
-| **Baseline LlamaIndex** | v7 | 0.909 | 1.000 | 0.933 | 5 / 5 (100 %) | - | ~80 paquets |
-| **RAG From-Scratch Hybride RRF** | **v9** | **1.000** | **1.000** | **0.950** | **5 / 5 (100 %)** | **5 / 5 (100 %)** | **0 framework** |
+| **BM25 baseline initiale** | v3 | 0.909 | 1.000 | 0.833 | 0 / 5 (hallucinations) | - | aucun framework RAG |
+| **Baseline LlamaIndex** | v7 | 0.909 | 1.000 | 0.933 | 5 / 5 | - | ~80 paquets (LlamaIndex) |
+| **RAG From-Scratch Hybride RRF** | **v9** | **1.000** | **1.000** | **0.950** | **5 / 5** | **5 / 5** | **aucun framework RAG** |
 
-### Conclusions clés pour le projet TX00
+*Attention : les métriques de retrieval des lignes v3 et v7 sont mesurées sur `dev`, celles de la ligne v9 sur `test`. Elles ne sont pas directement comparables.*
 
-1. **Généralisation validée** : Les métriques de recherche et d'abstention sont confirmées sur un jeu de test secret jamais utilisé pour le calibrage.
-2. **Supériorité de l'Hybride From-Scratch** :
-   * Recall@3 = **100 %**, Recall@5 = **100 %**, MRR = **0.950**.
-   * Indexation instantanée (< 0.1 s) vs 37 s pour LlamaIndex.
-   * Maîtrise totale de chaque composant (ingestion, segmentation, scoring, prompt d'abstention, citations).
+### Conclusions et limites
 
+1. **Retrieval** : sur `test`, BM25 seul (MRR 1.000, Recall@1 1.000) fait au moins aussi bien que l'hybride RRF (MRR 0.950, Recall@1 0.900). L'avantage de l'hybride n'apparaît que sur `dev` (v8, MRR 0.950 contre 0.833), où il a été choisi. Avec 10 questions répondables par split, la supériorité de l'hybride n'est pas démontrée.
+2. **Abstention** : 5/5 sur `test`, mais sur 5 questions seulement, avec une notation manuelle par une seule personne et une consigne de prompt retouchée après les échecs observés sur `dev` (q16, voir v5). Une abstention à tort est aussi observée sur une question répondable (`q09`).
+3. **LlamaIndex** n'a pas été évalué sur `test` (v7 porte sur `dev`, avec un découpage de 383 chunks). Les colonnes de la synthèse ci-dessus ne sont donc pas comparables entre elles.
+4. **Coût** : indexation BM25 quasi instantanée (< 0.1 s) contre 37 s pour LlamaIndex (mesure v7, embeddings inclus).
+5. **Dépendances** : sans framework RAG, mais avec `numpy`, `pdftotext` et Ollama.

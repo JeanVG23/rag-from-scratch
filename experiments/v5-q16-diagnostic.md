@@ -29,7 +29,7 @@ Le premier résultat n’est donc pas une donnée d’inscription. C’est un ex
 
 ## Pourquoi BM25 l’a remonté
 
-Après normalisation, les termes de la question liés à l’inscription, à la période et à l’année — `inscrits`, `automne`, `2025` — ne correspondent pas au premier passage. Les correspondances utiles sont surtout `IA04` et `étudiants`. La tokenisation conserve aussi des mots très fréquents comme `a`, `d`, `en` et `l`, sans stemming ni liste de mots vides.
+Après normalisation, les termes de la question liés à l’inscription, à la période et à l’année : `inscrits`, `automne`, `2025` : ne correspondent pas au premier passage. Les correspondances utiles sont surtout `IA04` et `étudiants`. La tokenisation conserve aussi des mots très fréquents comme `a`, `d`, `en` et `l`, sans stemming ni liste de mots vides.
 
 Les métadonnées sont concaténées au texte et reçoivent le même poids. Le titre de section contenant `IA04` contribue donc au score, même s’il ne dit rien sur les inscriptions. BM25 classe ici une proximité lexicale ; son score ne mesure ni la présence de la relation « être inscrit », ni la correspondance de la période « automne 2025 ». Le score de `9,875` ne peut pas servir de preuve qu’une réponse existe.
 

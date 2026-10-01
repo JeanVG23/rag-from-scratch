@@ -1,4 +1,4 @@
-# Génération IA04 — première revue
+# Génération IA04 : première revue
 
 Revue produite le 26 septembre 2026 à partir de la fiche locale de génération.
 
