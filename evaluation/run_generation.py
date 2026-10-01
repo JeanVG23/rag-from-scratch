@@ -13,7 +13,7 @@ from typing import Any
 
 from rag_from_scratch.generation import ABSTENTION, GenerationError, generate_answer, prepare_context
 from rag_from_scratch.models import Chunk
-from rag_from_scratch.retrieval import BM25Retriever
+from rag_from_scratch.retrieval import BM25Retriever, DenseRetriever, HybridRetriever
 from rag_from_scratch.retrieval_metrics import load_jsonl
 
 
@@ -23,6 +23,9 @@ def run_generation_review(
     questions_path: Path,
     output_path: Path,
     model: str,
+    retriever_type: str = "hybrid",
+    dense_model: str = "bge-m3",
+    index_path: Path | None = None,
     host: str | None = None,
     top_k: int = 5,
     k1: float = 1.5,
@@ -59,7 +62,23 @@ def run_generation_review(
             "to replace it"
         )
 
-    retriever = BM25Retriever(chunks, k1=k1, b=b, include_metadata=True)
+    if retriever_type == "dense":
+        retriever = DenseRetriever(
+            chunks,
+            model=dense_model,
+            index_path=index_path or Path("data/indexes/bge-m3.jsonl"),
+            host=host,
+        )
+    elif retriever_type == "hybrid":
+        retriever = HybridRetriever(
+            chunks,
+            dense_model=dense_model,
+            dense_index_path=index_path or Path("data/indexes/bge-m3.jsonl"),
+            host=host,
+        )
+    else:
+        retriever = BM25Retriever(chunks, k1=k1, b=b, include_metadata=True)
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     generated_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
     with output_path.open("w", encoding="utf-8") as output:
@@ -92,7 +111,7 @@ def run_generation_review(
                     "num_predict": num_predict,
                 },
                 "retrieval": {
-                    "method": "BM25",
+                    "method": retriever_type.upper(),
                     "top_k": top_k,
                     "k1": k1,
                     "b": b,
@@ -159,6 +178,19 @@ def main() -> int:
         default=os.environ.get("OLLAMA_CHAT_MODEL"),
         help="Ollama chat model (defaults to OLLAMA_CHAT_MODEL)",
     )
+    parser.add_argument(
+        "--retriever",
+        choices=["bm25", "dense", "hybrid"],
+        default="hybrid",
+        help="Retrieval engine to use (default: hybrid)",
+    )
+    parser.add_argument("--dense-model", default="bge-m3", help="Dense embedding model")
+    parser.add_argument(
+        "--index",
+        type=Path,
+        default=Path("data/indexes/bge-m3.jsonl"),
+        help="Path to precomputed embeddings index",
+    )
     parser.add_argument("--host", help="Ollama host (defaults to OLLAMA_HOST or localhost)")
     parser.add_argument("--top-k", type=int, default=5)
     parser.add_argument("--k1", type=float, default=1.5)
@@ -187,6 +219,9 @@ def main() -> int:
             questions_path=args.questions,
             output_path=args.output,
             model=args.model,
+            retriever_type=args.retriever,
+            dense_model=args.dense_model,
+            index_path=args.index,
             host=args.host,
             top_k=args.top_k,
             k1=args.k1,
