@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-from-scratch"
+version = "0.1.0"
+description = "A modular, from-scratch RAG engine with hybrid search (BM25 + Dense RRF) and local Ollama generation."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Jean Van Gysel" }
+]
+keywords = ["rag", "information-retrieval", "bm25", "embeddings", "rrf", "hybrid-search", "ollama", "nlp"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+]
+eval = [
+    "llama-index-core>=0.10.0",
+    "llama-index-llms-ollama",
+    "llama-index-embeddings-ollama",
+    "pypdf>=4.0.0",
+]
+all = [
+    "rag-from-scratch[test,eval]",
+]
+
+[project.scripts]
+rag = "rag_from_scratch.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
