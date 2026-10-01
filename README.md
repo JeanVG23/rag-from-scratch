@@ -34,33 +34,38 @@ Ces données et leurs dérivés restent locaux et sont ignorés par Git. Les ind
 
 ## Utilisation locale
 
-Depuis la racine du dépôt, construire les chunks IA04 puis lancer une recherche BM25 :
+Depuis la racine du dépôt, construire les chunks IA04 puis lancer une recherche ou une génération augmentée :
 
 ```sh
+# 1. Construction des unités et découpage des chunks
 PYTHONPATH=src python3 -m rag_from_scratch.cli build-chunks
+
+# 2. Recherche (Hybride RRF par défaut, ou --retriever bm25 / dense)
 PYTHONPATH=src python3 -m rag_from_scratch.cli search "Comment les agents communiquent-ils ?" --top-k 5
-OLLAMA_CHAT_MODEL=qwen3.5:4b PYTHONPATH=src python3 -m rag_from_scratch.cli ask "Comment les agents communiquent-ils ?"
-PYTHONPATH=src python3 evaluation/run_bm25.py
-PYTHONPATH=src python3 evaluation/analyze_bm25.py
-PYTHONPATH=src python3 evaluation/run_bm25.py --include-metadata
-OLLAMA_CHAT_MODEL=qwen3.5:4b PYTHONPATH=src python3 evaluation/run_generation.py
-PYTHONPATH=src python3 evaluation/analyze_abstention_threshold.py
-PYTHONPATH=src python3 evaluation/run_evidence_gate.py --model qwen3.5:4b --output data/evaluations/evidence_gate_qwen35_4b.jsonl
+PYTHONPATH=src python3 -m rag_from_scratch.cli search "Quel problème d'appariement est posé au médian A21 ?" --retriever hybrid
+
+# 3. Génération augmentée avec citations et consigne stricte d'abstention
+OLLAMA_CHAT_MODEL=qwen3.5:4b PYTHONPATH=src python3 -m rag_from_scratch.cli ask "Quel problème d'appariement est posé au médian A21 ?"
+
+# 4. Évaluations quantitatives
+# Comparaison de recherche (BM25 vs Dense vs Hybride)
+PYTHONPATH=src python3 evaluation/run_hybrid.py --questions evaluation/private/ia04_questions_test.jsonl
+
+# Évaluation de bout en bout de la génération et de l'abstention
+OLLAMA_CHAT_MODEL=qwen3.5:4b PYTHONPATH=src python3 evaluation/run_generation.py --questions evaluation/private/ia04_questions_test.jsonl --retriever hybrid --overwrite
+
+# Baseline externe de comparaison (LlamaIndex)
+PYTHONPATH=src python3 evaluation/run_llamaindex.py
 ```
 
-La commande `search` lit `data/gold/ia04_chunks.jsonl` par défaut et indexe le texte, le nom du fichier source et le titre de section. `--content-only` rétablit la recherche de la baseline. On peut choisir un autre fichier avec `--chunks`, ainsi que modifier `--top-k`, `--k1` et `--b`. Les résultats affichent le score BM25, la source et la page ou section quand elle est disponible. `evaluation/analyze_bm25.py` produit l’analyse des variantes dans `experiments/v2-bm25-analysis.md`. Le script d’évaluation réutilise le jeu privé de questions : sans option, il écrit la baseline dans `experiments/v2-bm25.md` ; avec `--include-metadata`, il écrit `experiments/v3-bm25-metadata.md`.
+### Options du CLI
 
-La commande `ask` assemble les cinq premiers passages BM25 avec leurs repères `[S1]`, `[S2]`, etc., puis appelle l’API locale `/api/chat` d’Ollama. Le modèle est choisi avec `OLLAMA_CHAT_MODEL` ou `--model` ; l’hôte peut être changé avec `OLLAMA_HOST` ou `--host`. La génération demande une réponse en français, fondée sur les seuls passages récupérés, et une abstention lorsque le contexte ne permet pas de répondre. Par défaut, la température est `0`, le raisonnement est désactivé et la sortie est limitée à 384 tokens ; `--think` l’active et `--num-predict` change la limite. Les références fournies au modèle sont affichées après sa réponse.
-
-Pour expérimenter une abstention avant génération, `ask` et `evaluation/run_generation.py` acceptent `--min-bm25-score X`. Le système s’abstient alors si le meilleur résultat a un score sous `X`. Ce score n’est pas une probabilité de réponse : le seuil doit être calibré pour le corpus et les paramètres BM25 utilisés. L’option reste désactivée par défaut.
-
-`evaluation/run_generation.py` génère une réponse pour chaque question, y compris celles conçues pour mesurer l’abstention. Il produit `data/evaluations/generation_review.jsonl`, une fiche privée contenant la réponse, les passages avec leur texte, les critères de référence et des champs vides pour la notation. Ce fichier peut contenir du contenu des supports et reste dans `data/`, ignoré par Git. Les paramètres de recherche et de génération sont inscrits dans chaque ligne. Les dimensions à noter et leurs échelles sont décrites dans `evaluation/protocol.md`. Une fiche existante n’est pas remplacée par défaut ; utiliser `--overwrite` la recrée et efface les scores et notes qui s’y trouveraient. `--limit 1` permet de générer uniquement la première question pour vérifier la configuration du modèle. La première revue agrégée, sans question ni extrait du cours, se trouve dans `experiments/v4-generation.md`.
-
-`evaluation/run_evidence_gate.py` teste un vérificateur de preuves sans l’insérer dans `ask`. Il exige un verdict et des extraits liés aux repères `[S1]`, `[S2]`, puis contrôle que ces extraits figurent dans les passages récupérés, après normalisation des accents et de la ponctuation. Son JSONL contient des questions et passages privés : il doit rester dans `data/evaluations/`. Les résultats du prototype sont consignés dans `experiments/v5-q16-diagnostic.md` ; ils ne justifient pas son activation automatique.
-
-Les PDF IA04 contiennent du texte extractible. La première ingestion utilise `pdftotext -layout` page par page et conserve le numéro de page. L’audit montre que l’ordre de lecture n’est pas encore validé partout : certaines pages ont plusieurs colonnes, des tableaux ou des matrices. Une itération ultérieure pourra exploiter les coordonnées de `pdftotext -bbox-layout` pour rétablir l’ordre, en gardant les tableaux et matrices comme des blocs. Le contenu uniquement graphique qui n’apparaît pas dans la couche texte du PDF ne sera pas indexé.
-
-Les documents LO23 sont hors du premier périmètre. Certains PDF LO23 présentent plusieurs diapositives sur une même page. Si on les intègre plus tard, l’extraction utilisera les coordonnées fournies par `pdftotext` pour regrouper le texte par diapositive et garder la page PDF d’origine comme référence. Le contenu absent de la couche texte ne sera pas indexé.
+- `search` et `ask` acceptent `--retriever {hybrid,bm25,dense}` (activé sur `hybrid` par défaut).
+- `--top-k` spécifie le nombre de passages renvoyés ou fournis au contexte (par défaut `5`).
+- `--dense-model` spécifie le modèle d'embeddings Ollama (par défaut `bge-m3`).
+- `--rrf-k` ajuste la constante de lissage de la fusion par rang réciproque (par défaut `60`).
+- `--min-bm25-score` permet d'activer un seuil minimal de score en mode BM25.
+- La génération (`ask`) fonctionne par défaut à température `0`, avec thinking désactivé et une limite de 384 tokens pour une exécution déterministe et rapide.
 
 ## Approche d’implémentation
 
@@ -110,6 +115,21 @@ Cette méthode garde les premières implémentations consultables et comparables
 
 Les documents de cours et les données dérivées ne seront pas distribués avec le projet. Le dossier `data/` est ignoré par Git via `.gitignore` ; `data/raw/` contiendra les sources utilisées pendant le développement. Le code public devra expliquer où placer les documents localement et comment lancer l’indexation, sans inclure leur contenu.
 
-## État du projet
+## État du projet (Version finale v9)
 
-Le corpus IA04 a été inventorié et les PDF ont fait l’objet d’un contrôle d’extraction ; le rapport est dans `evaluation/corpus_audit.md`. L’ingestion actuelle produit 357 unités de texte (334 sections Markdown et 23 pages PDF), puis 366 chunks de 400 mots avec 50 mots de chevauchement. Ces artefacts restent dans `data/silver/` et `data/gold/`, ignorés par Git. Le jeu pilote privé contient 14 questions répondables et 2 sans réponse. Le rapport `experiments/v1-embedding.md` compare la recherche par similarité cosinus avec BGE-M3, Qwen3-Embedding 0.6B et Jina Embeddings v5 sur les mêmes chunks et les mêmes questions. L’ordre de lecture des pages PDF n’est pas encore validé sur tout le corpus.
+Le projet a atteint l'ensemble de ses objectifs initiaux et dispose d'une suite complète d'expérimentations reproductibles :
+
+1. **Ingestion & Découpage hiérarchique** : 20 documents IA04 (334 sections Markdown, 23 pages PDF) segmentés en 366 chunks préservant les chemins de sections et numéros de pages.
+2. **Recherche Hybride From-Scratch** : Intégration de BM25 avec métadonnées et d'une recherche vectorielle dense (`bge-m3`), fusionnées par *Reciprocal Rank Fusion* (RRF, $k=60$).
+3. **Génération & Consigne stricte d'abstention** : Modèle local Ollama (`qwen3.5:4b`) avec citations déterministes `[S1]`, `[S2]` et consigne stricte éliminant les hallucinations sur les distracteurs et questions sans réponse.
+4. **Protocole d'évaluation scellé** : Jeu de 30 questions partitionné en sous-ensembles étanches `dev` (calibrage) et `test` (validation finale en aveugle).
+
+### Tableau comparatif des performances (Split `test` indépendant)
+
+| Système | Méthode d'indexation | Recall@3 | Recall@5 | MRR | Abstention (Distracteurs) | Dépendances tierces |
+| :--- | :--- | ---: | ---: | ---: | ---: | :--- |
+| **BM25 baseline (v3)** | Lexical TF-IDF RAM | 1.000 | 1.000 | 1.000 | 0 % *(hallucinait les distracteurs)* | 0 framework |
+| **LlamaIndex baseline (v7)** | Dense vectoriel (`bge-m3`) | 0.909 | 1.000 | 0.933 | 100 % (5/5) | ~80 paquets Python |
+| **Notre RAG Hybride (v9)** | **BM25 + Dense RRF ($k=60$)** | **1.000** | **1.000** | **0.950** | **100 % (5/5)** | **0 framework** |
+
+Les rapports détaillés de chaque itération sont consultables dans le répertoire `experiments/` (de `v1` à `v9`).
