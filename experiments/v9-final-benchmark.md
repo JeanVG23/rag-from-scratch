@@ -68,5 +68,5 @@ Aucune hallucination observée sur les 5 distracteurs inédits.
 1. **Retrieval** : sur `test`, BM25 seul (MRR 1.000, Recall@1 1.000) fait au moins aussi bien que l'hybride RRF (MRR 0.950, Recall@1 0.900). L'avantage de l'hybride n'apparaît que sur `dev` (v8, MRR 0.950 contre 0.833), où il a été choisi. Avec 10 questions répondables par split, la supériorité de l'hybride n'est pas démontrée.
 2. **Abstention** : 5/5 sur `test`, mais sur 5 questions seulement, avec une notation manuelle par une seule personne et une consigne de prompt retouchée après les échecs observés sur `dev` (q16, voir v5). Une abstention à tort est aussi observée sur une question répondable (`q09`).
 3. **LlamaIndex** n'a pas été évalué sur `test` (v7 porte sur `dev`, avec un découpage de 383 chunks). Les colonnes de la synthèse ci-dessus ne sont donc pas comparables entre elles.
-4. **Coût** : indexation BM25 quasi instantanée (< 0.1 s) contre 37 s pour LlamaIndex (mesure v7, embeddings inclus).
+4. **Coût** : la comparaison BM25 (< 0.1 s) contre LlamaIndex (37 s, v7) n'est pas équitable : la seconde inclut le calcul des embeddings, pas la première. Le temps d'indexation de l'hybride, embeddings compris, n'est pas mesuré ici.
 5. **Dépendances** : sans framework RAG, mais avec `numpy`, `pdftotext` et Ollama.

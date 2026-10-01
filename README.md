@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Recall@3 test](https://img.shields.io/badge/Recall%403_(test)-100%25-brightgreen.svg)](#tableau-comparatif-des-performances)
 [![Abstention test](https://img.shields.io/badge/Abstention_(test)-5%2F5-brightgreen.svg)](#limites-et-précautions-de-lecture)
-[![Framework Dependencies](https://img.shields.io/badge/Framework_Dependencies-0-orange.svg)](#philosophie)
+[![RAG framework](https://img.shields.io/badge/Framework_RAG-aucun-orange.svg)](#limites-et-précautions-de-lecture)
 
 Un moteur de **Retrieval-Augmented Generation (RAG)** développé de zéro en Python, sans framework RAG (ni LangChain ni LlamaIndex). Il dépend de `numpy`, de `pdftotext` (poppler) et d'un serveur Ollama local. Il combine une recherche hybride (**BM25 lexical enrichi + Embeddings denses BGE-M3 fusionnés par Reciprocal Rank Fusion**), un modèle de langage local via **Ollama (Qwen 3.5)**, des citations traçables et une consigne d'exclusion stricte anti-hallucination.
 
@@ -47,7 +47,7 @@ flowchart TD
 ## Points Clés & Différenciation
 
 - **Zéro boîte noire** : Le tokenizer, le calcul Okapi BM25, la similarité vectorielle cosinus et la fusion RRF sont entièrement implémentés sans framework RAG.
-- **Indexation instantanée** : Moins de 0,1 seconde en mémoire (contre ~40 secondes pour les solutions vectorielles pures).
+- **Indexation lexicale légère** : l'index BM25 se construit en moins de 0,1 seconde en mémoire. Cette mesure ne couvre pas les embeddings denses (`bge-m3`), dont le calcul est le poste coûteux de toute recherche vectorielle (37 s pour LlamaIndex sur dev, qui ne calcule que des embeddings). Les deux chiffres ne mesurent pas la même chose et ne se comparent pas.
 - **Abstention** : 5 abstentions correctes sur 5 questions sans réponse du split `test`, grâce à une consigne d'exclusion stricte (échantillon très petit, voir les limites ci-dessous).
 - **Rigueur scientifique** : Benchmark sur 30 questions privées, partitionnées en sous-ensembles étanches `dev` (calibrage) et `test` (validation finale en aveugle), avec une baseline LlamaIndex mesurée sur le split `dev` uniquement.
 
