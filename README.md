@@ -6,7 +6,7 @@
 [![Abstention test](https://img.shields.io/badge/Abstention_(test)-5%2F5-brightgreen.svg)](#limites-et-précautions-de-lecture)
 [![RAG framework](https://img.shields.io/badge/Framework_RAG-aucun-orange.svg)](#limites-et-précautions-de-lecture)
 
-Un moteur de **Retrieval-Augmented Generation (RAG)** développé de zéro en Python, sans framework RAG (ni LangChain ni LlamaIndex). Il dépend de `numpy`, de `pdftotext` (poppler) et d'un serveur Ollama local. Il combine une recherche hybride (**BM25 lexical enrichi + Embeddings denses BGE-M3 fusionnés par Reciprocal Rank Fusion**), un modèle de langage local via **Ollama (Qwen 3.5)**, des citations traçables et une consigne d'exclusion stricte anti-hallucination.
+Un moteur de **Retrieval-Augmented Generation (RAG)** construit de zéro en Python, sans framework RAG (ni LangChain ni LlamaIndex). Il dépend de `numpy`, de `pdftotext` (poppler) et d'un serveur Ollama local. Il combine une recherche hybride (**BM25 lexical enrichi + Embeddings denses BGE-M3 fusionnés par Reciprocal Rank Fusion**), un modèle de langage local via **Ollama (Qwen 3.5)**, des citations traçables et une consigne d'exclusion stricte anti-hallucination.
 
 Le corpus pilote porte sur l'UV de master **IA04 (Systèmes Multi-Agents)** : 20 documents sources (supports de cours Markdown, sujets de TD, annales d'examens en PDF).
 
@@ -58,7 +58,7 @@ flowchart TD
 ```bash
 # Cloner le dépôt et installer en mode éditable
 git clone https://github.com/JeanVG23/rag-from-scratch.git
-cd rag
+cd rag-from-scratch
 pip install -e .
 
 # (Optionnel) Installer les dépendances d'évaluation et de tests
@@ -125,12 +125,13 @@ PYTHONPATH=src python3 evaluation/run_llamaindex.py
 
 ## Approche d’implémentation
 
-Dans les premières étapes, les briques principales seront écrites à la main, sans framework RAG, base vectorielle ni bibliothèque de recherche qui masque leur fonctionnement. Les bibliothèques de la collection standard de Python pourront être utilisées quand elles ne remplacent pas une brique étudiée.
+*Cette section et les deux suivantes reprennent le plan de départ, rédigé au futur. L'état final (v9) est décrit dans « État du projet » plus bas.*
+
+Dans les premières étapes, les briques principales seront construites une à une, sans framework RAG, base vectorielle ni bibliothèque de recherche qui masque leur fonctionnement. Les bibliothèques de la collection standard de Python pourront être utilisées quand elles ne remplacent pas une brique étudiée.
 
 Les premières versions sont des **baselines de recherche**. La commande `ask` ajoute maintenant une première génération locale avec les passages récupérés comme contexte et des références dans la réponse ; sa qualité doit encore être mesurée avec la grille du protocole.
 
-**Méthode de travail.** Ce dépôt est un projet d'apprentissage réalisé avec l'aide d'un assistant IA (Claude Code), pour le code comme pour une partie de la rédaction des rapports.
-Les choix d'évaluation (questions, annotations, lecture des résultats) et la relecture critique des affirmations sont de mon fait ; les mesures sont à lire avec les limites indiquées plus bas.
+**Méthode de travail.** Je n'ai pas écrit le code de ce dépôt : il a été écrit par un assistant IA (Claude Code), sous ma direction, de même qu'une partie de la rédaction des rapports. Ma part est la conception (architecture, ordre des étapes, BM25 avant le dense, fusion par rangs, consigne d'abstention), le protocole d'évaluation (questions, annotations, notation manuelle, lecture des résultats) et la relecture critique des affirmations. Les mesures sont à lire avec les limites indiquées plus bas.
 
 ## Itérations prévues
 
